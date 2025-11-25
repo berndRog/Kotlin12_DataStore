@@ -13,7 +13,9 @@ import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 fun defModulesTest(
-   appHomePath: String,
+   appHomeName: String,
+   directoryName: String,
+   fileName: String,
    ioDispatcher: CoroutineDispatcher
 ): Module = module {
 
@@ -33,8 +35,9 @@ fun defModulesTest(
    logInfo(tag, "single    -> DataStore: IDataStore")
    single<IDataStore> {
       DataStore(
-         directoryName = null,
-         fileName = null,
+         appHomeName = appHomeName,
+         directoryName = directoryName,
+         fileName = fileName,
          _seed = get<Seed>(),
          _dispatcherIO = get(named("dispatcherIo")),
       )

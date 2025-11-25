@@ -9,6 +9,7 @@ import di.defModulesTest
 import domain.IPersonRepository
 import domain.entities.Person
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
 import org.junit.After
 import org.junit.Before
 import org.junit.Rule
@@ -28,6 +29,15 @@ class IPersonRepositoryUt {
    @get:Rule
    val mainRule = MainDispatcherRule()
 
+   // Json serializer
+   private val _json = Json {
+      prettyPrint = true
+      ignoreUnknownKeys = true
+   }
+
+   // parameters for tests
+   private val directoryName = "test"
+   private val fileName = "peoplek12.json"
    private lateinit var _seed: Seed
    private lateinit var _dataStore: IDataStore
    private lateinit var _repository: IPersonRepository
@@ -42,10 +52,14 @@ class IPersonRepositoryUt {
       Globals.isVerbose = false
 
       stopKoin() // falls von anderen Tests übrig
+
       val testModule = defModulesTest(
-         appHomePath = tempDir.root.absolutePath,
+         appHomeName = tempDir.root.absolutePath,
+         directoryName = directoryName,
+         fileName = fileName,
          ioDispatcher = mainRule.dispatcher() // StandardTestDispatcher als IO
       )
+
       val koinApp = startKoin { modules(testModule) }
       val koin = koinApp.koin
       _seed = koin.get<Seed>()

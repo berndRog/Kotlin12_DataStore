@@ -7,15 +7,10 @@ import domain.entities.Person
 import domain.utilities.logDebug
 import domain.utilities.logError
 import domain.utilities.logVerbose
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -27,6 +22,7 @@ import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
 class DataStore(
+   appHomeName: String?,
    directoryName: String?,
    fileName: String?,
    private val _seed: Seed? = null,
@@ -34,7 +30,7 @@ class DataStore(
    private val _dispatcherIO: CoroutineDispatcher = Dispatchers.IO
 ) : IDataStore {
 
-   private val _appHome = System.getProperty("user.home") // context.filesDir on Android
+   private val _appHome = appHomeName ?: System.getProperty("user.home") // context.filesDir on Android
    private var _directoryName = directoryName ?: Globals.directory_name
    private val _fileName = fileName ?: Globals.file_name
 
@@ -45,7 +41,7 @@ class DataStore(
    )
 
    // Coroutine-safe locking
-   private val mutex = Mutex()
+   private val _mutex = Mutex()
 
    // Reactive in-memory state
    private val _peopleFlow = MutableStateFlow<List<Person>>(emptyList())
@@ -73,10 +69,14 @@ class DataStore(
 
    // one show write
    override suspend fun insert(person: Person) {
-      mutex.withLock {
+      _mutex.withLock {
+         // snapshot current value
          val current: List<Person> = _peopleFlow.value
          if (current.any { it.id == person.id }) return
          logVerbose(TAG, "insert: $person")
+//         val updated: List<Person> = current.toMutableList()
+//            .apply { add(person) }
+//            .toList()
          val updated = current + person // copy current and add person
          writeInternal(updated)
          _peopleFlow.value = updated
@@ -84,7 +84,7 @@ class DataStore(
    }
 
    override suspend fun update(person: Person) {
-      mutex.withLock {
+      _mutex.withLock {
          val current = _peopleFlow.value
          require(current.any { it.id == person.id }) { "Person with id ${person.id} does not exist" }
          logVerbose(TAG, "update: $person")
@@ -95,7 +95,7 @@ class DataStore(
    }
 
    override suspend fun delete(person: Person) {
-      mutex.withLock {
+      _mutex.withLock {
          val current = _peopleFlow.value
          require(current.any { it.id == person.id }) { "Person with id ${person.id} does not exist" }
          logVerbose(TAG, "delete: $person")
@@ -108,9 +108,11 @@ class DataStore(
    // Initialize: load from file or seed
    override suspend fun initialize() {
       logDebug(TAG, "init: read datastore")
-      mutex.withLock {
+      _mutex.withLock {
          val exists = Files.exists(filePath)
-         val size = if (exists) runCatching { Files.size(filePath) }.getOrElse { 0L } else 0L
+         val size = if (exists) runCatching {
+            Files.size(filePath)
+         }.getOrElse { 0L } else 0L
 
          if (!exists || size == 0L) {
             _seed?.let { seed ->

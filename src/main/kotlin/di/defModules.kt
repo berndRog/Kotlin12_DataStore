@@ -17,21 +17,14 @@ import ui.people.PersonViewModel
 val defModules: Module = module {
     val tag = "<-defModules"
 
-   logInfo(tag, "single    -> dispatcherMain: CoroutineDispatcher")
-   single<CoroutineDispatcher>(named("dispatcherMain")) {
-      Dispatchers.Main.immediate
-   }
-
-   logInfo(tag, "single    -> dispatcherDefault: CoroutineDispatcher")
-   single<CoroutineDispatcher>(named("dispatcherDefault")) {
-      Dispatchers.Default
-   }
-
    logInfo(tag, "single    -> dispatcherIO: CoroutineDispatcher")
    single<CoroutineDispatcher>(named("dispatcherIo")) {
       Dispatchers.IO
    }
-
+   logInfo(tag, "single    -> dispatcherDefault: CoroutineDispatcher")
+   single<CoroutineDispatcher>(named("dispatcherDefault")) {
+      Dispatchers.Default
+   }
 
     // data modules
    logInfo(tag, "single    -> Seed")
@@ -42,6 +35,7 @@ val defModules: Module = module {
    logInfo(tag, "single    -> DataStore: IDataStore")
    single<IDataStore> {
       DataStore(
+         appHomeName = null,
          directoryName = null,
          fileName = null,
          _seed = get<Seed>(),
